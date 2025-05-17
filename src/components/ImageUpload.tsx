@@ -2,7 +2,7 @@ import React, { useCallback, useState, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, Loader2, Camera, X, Image } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { DiseaseInfo, DISEASE_INFO } from '../types';
+import { DISEASE_INFO } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ImageUploadProps {
@@ -46,9 +46,6 @@ export function ImageUpload({ onPredictionComplete }: ImageUploadProps) {
     setUploadProgress(0);
 
     try {
-      const previewUrl = URL.createObjectURL(file);
-      setPreview(previewUrl);
-
       // Simulate upload progress
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
@@ -61,7 +58,7 @@ export function ImageUpload({ onPredictionComplete }: ImageUploadProps) {
       }, 200);
 
       const fileName = `${Date.now()}-${file.name}`;
-      
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('skin-images')
         .upload(fileName, file);
@@ -75,17 +72,23 @@ export function ImageUpload({ onPredictionComplete }: ImageUploadProps) {
         .from('skin-images')
         .getPublicUrl(fileName);
 
-      // If image is from camera, always return "No disease"
-      const result = isFromCamera ? {
-        disease_class: "No disease",
-        confidence: 1.0
-      } : {
-        disease_class: ["Melanoma", "Nevus", "Basal Cell Carcinoma", "Actinic Keratosis", "Squamous Cell Carcinoma"][
-          Math.floor(Math.random() * 5)
-        ],
-        confidence: 0.85 + Math.random() * 0.1
-      };
-      
+      // Set Supabase public URL for preview
+      setPreview(publicUrl);
+
+      // Simulate prediction
+      const result = isFromCamera
+        ? { disease_class: 'No disease', confidence: 1.0 }
+        : {
+            disease_class: [
+              'Melanoma',
+              'Nevus',
+              'Basal Cell Carcinoma',
+              'Actinic Keratosis',
+              'Squamous Cell Carcinoma',
+            ][Math.floor(Math.random() * 5)],
+            confidence: 0.85 + Math.random() * 0.1,
+          };
+
       setPrediction(result);
       onPredictionComplete(result);
       setShowConsent(true);
@@ -116,13 +119,14 @@ export function ImageUpload({ onPredictionComplete }: ImageUploadProps) {
       if (file) processImage(file);
     }, []),
     accept: {
-      'image/*': ['.jpeg', '.jpg', '.png']
+      'image/*': ['.jpeg', '.jpg', '.png'],
     },
-    maxFiles: 1
+    maxFiles: 1,
   });
 
   return (
     <div className="w-full max-w-xl mx-auto space-y-4">
+      {/* Upload Buttons */}
       <div className="flex justify-center space-x-4 mb-4">
         <motion.button
           whileHover={{ scale: 1.05 }}
@@ -133,7 +137,7 @@ export function ImageUpload({ onPredictionComplete }: ImageUploadProps) {
           <Image className="w-5 h-5 mr-2" />
           Gallery
         </motion.button>
-        
+
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
@@ -145,28 +149,17 @@ export function ImageUpload({ onPredictionComplete }: ImageUploadProps) {
         </motion.button>
       </div>
 
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileSelect}
-        accept="image/*"
-        className="hidden"
-      />
-      
-      <input
-        type="file"
-        ref={cameraInputRef}
-        onChange={handleFileSelect}
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-      />
+      <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
+      <input type="file" ref={cameraInputRef} onChange={handleFileSelect} accept="image/*" capture="environment" className="hidden" />
 
+      {/* Dropzone */}
       {!preview && (
         <motion.div
           {...getRootProps()}
           className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-            ${isDragActive ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'}`}
+            ${isDragActive
+              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'}`}
           whileHover={{ scale: 1.02 }}
         >
           <input {...getInputProps()} />
@@ -201,8 +194,9 @@ export function ImageUpload({ onPredictionComplete }: ImageUploadProps) {
         </motion.div>
       )}
 
+      {/* Error */}
       {error && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg"
@@ -211,8 +205,9 @@ export function ImageUpload({ onPredictionComplete }: ImageUploadProps) {
         </motion.div>
       )}
 
+      {/* Preview */}
       {preview && !isLoading && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="relative mt-4"
@@ -233,6 +228,7 @@ export function ImageUpload({ onPredictionComplete }: ImageUploadProps) {
         </motion.div>
       )}
 
+      {/* Consent Modal */}
       <AnimatePresence>
         {showConsent && (
           <motion.div
@@ -276,6 +272,7 @@ export function ImageUpload({ onPredictionComplete }: ImageUploadProps) {
         )}
       </AnimatePresence>
 
+      {/* Medical Info */}
       {prediction && DISEASE_INFO[prediction.disease_class] && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
